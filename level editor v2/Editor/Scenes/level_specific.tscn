@@ -1,0 +1,125 @@
+[gd_scene load_steps=11 format=3 uid="uid://pkpxqi8ix78w"]
+
+[ext_resource type="Script" path="res://Editor/Classes/TileTab.gd" id="1_ftmux"]
+[ext_resource type="Script" path="res://Editor/Classes/Tile.gd" id="2_gywkm"]
+[ext_resource type="TileSet" uid="uid://c1wm0jqjtx2wm" path="res://Editor/Placeholder Assets/tileset.tres" id="3_j4cmk"]
+[ext_resource type="Texture2D" uid="uid://gdtl44da8cuh" path="res://icon.svg" id="4_2fx50"]
+[ext_resource type="Script" path="res://Editor/Level Specific/PaintOptions.gd" id="4_sdas2"]
+
+[sub_resource type="Resource" id="Resource_5rtrn"]
+script = ExtResource("2_gywkm")
+special = false
+source_id = 0
+scene_id = 0
+atlas_coords = Vector2i(1, 0)
+
+[sub_resource type="Resource" id="Resource_eo2em"]
+script = ExtResource("2_gywkm")
+special = true
+source_id = 1
+scene_id = 1
+atlas_coords = Vector2i(-1, -1)
+
+[sub_resource type="PackedScene" id="PackedScene_5xm51"]
+_bundled = {
+"conn_count": 0,
+"conns": PackedInt32Array(),
+"editable_instances": [],
+"names": PackedStringArray("23e", "Node2D", "Sprite2D", "Sprite2D", "texture"),
+"node_count": 2,
+"node_paths": [NodePath(".")],
+"nodes": PackedInt32Array(-1, -1, 1, 0, -1, 0, 0, 1073741824, 0, 3, 2, -1, 1, 4, 0, 0),
+"variants": [ExtResource("4_2fx50")],
+"version": 3
+}
+
+[sub_resource type="TileSetScenesCollectionSource" id="TileSetScenesCollectionSource_4avn7"]
+scenes/1/scene = SubResource("PackedScene_5xm51")
+
+[sub_resource type="TileSet" id="TileSet_2rq3k"]
+sources/0 = SubResource("TileSetScenesCollectionSource_4avn7")
+
+[node name="Level Specific" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Level Window" type="TabContainer" parent="."]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.007
+anchor_top = 0.691
+anchor_right = 0.007
+anchor_bottom = 0.691
+offset_left = -0.0640001
+offset_top = 0.231964
+offset_right = 1135.94
+offset_bottom = 192.232
+mouse_filter = 0
+current_tab = 2
+
+[node name="Normal" type="TabBar" parent="Level Window"]
+visible = false
+layout_mode = 2
+script = ExtResource("1_ftmux")
+tiles = Array[ExtResource("2_gywkm")]([SubResource("Resource_5rtrn")])
+reference_tileset = ExtResource("3_j4cmk")
+
+[node name="Special" type="TabBar" parent="Level Window"]
+visible = false
+layout_mode = 2
+script = ExtResource("1_ftmux")
+tiles = Array[ExtResource("2_gywkm")]([SubResource("Resource_eo2em")])
+reference_tileset = ExtResource("3_j4cmk")
+
+[node name="Settings" type="TabBar" parent="Level Window"]
+layout_mode = 2
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Level Window/Settings"]
+layout_mode = 2
+offset_right = 520.0
+offset_bottom = 153.0
+theme_override_constants/separation = 5
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Level Window/Settings/HBoxContainer"]
+custom_minimum_size = Vector2(64, 0)
+layout_mode = 2
+
+[node name="Label" type="Label" parent="Level Window/Settings/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Paint Mode"
+
+[node name="PaintOptions" type="OptionButton" parent="Level Window/Settings/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+item_count = 5
+selected = 3
+popup/item_0/text = "Rect"
+popup/item_0/id = 0
+popup/item_1/text = "Line"
+popup/item_1/id = 1
+popup/item_2/text = "Echoless"
+popup/item_2/id = 2
+popup/item_3/text = "Normal"
+popup/item_3/id = 3
+popup/item_4/text = "Eraser"
+popup/item_4/id = 4
+script = ExtResource("4_sdas2")
+
+[node name="EditMode" type="CheckBox" parent="Level Window/Settings/HBoxContainer/VBoxContainer"]
+layout_mode = 2
+text = "Edit Mode"
+
+[node name="Guide" type="TabBar" parent="Level Window"]
+visible = false
+layout_mode = 2
+
+[node name="TileMap" type="TileMap" parent="."]
+tile_set = SubResource("TileSet_2rq3k")
+format = 2
+
+[connection signal="item_selected" from="Level Window/Settings/HBoxContainer/VBoxContainer/PaintOptions" to="Level Window/Settings/HBoxContainer/VBoxContainer/PaintOptions" method="_on_item_selected"]
+[connection signal="toggled" from="Level Window/Settings/HBoxContainer/VBoxContainer/EditMode" to="Level Window/Settings/HBoxContainer/VBoxContainer/PaintOptions" method="_on_edit_mode_toggled"]

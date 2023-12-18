@@ -1,0 +1,14 @@
+Editor made by Hevinis (hevinis on discord, @MadeInHevinis on twitter)
+
+How to configure the editor:
+	
+	1 - Making a Tile:
+		
+		1.1 - Go to the "Level Specific" scene (res://Editor/Scenes/level_specific.tscn)
+		
+		1.2 - Depending on if your tile is Normal or Special (meaning it comes from a scene),
+			  go into the Normal or Special tab (children of the Level Window node).
+		
+		1.3 - Add a new element to the Tiles property of the tab and make it a new Tile res.
+		
+		1.4 - 

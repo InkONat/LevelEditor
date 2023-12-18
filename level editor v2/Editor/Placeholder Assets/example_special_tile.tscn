@@ -1,0 +1,10 @@
+[gd_scene load_steps=3 format=3 uid="uid://bif5i7ao7ik2a"]
+
+[ext_resource type="Script" path="res://Editor/Placeholder Assets/example_special_tile.gd" id="1_h01vb"]
+[ext_resource type="Texture2D" uid="uid://gdtl44da8cuh" path="res://icon.svg" id="2_j54m7"]
+
+[node name="ExampleSpecialTile" type="Node2D"]
+script = ExtResource("1_h01vb")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture = ExtResource("2_j54m7")
