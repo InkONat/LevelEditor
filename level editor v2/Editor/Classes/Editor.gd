@@ -22,6 +22,7 @@ enum PaintMode {
 	PAINT_MODE_ECHOLESS, ## Will create tiles normally, but won't be able to hold to paint tiles
 	PAINT_MODE_NORMAL, ## Will create tiles normally
 	PAINT_MODE_ERASER, ## Will erase clicked tiles
+	PAINT_MODE_FILL, ## Will fill same tiles with the selected tile
 }
 
 ## Creates a new tilemap, adding it to the node [param to] (if [param custom_tilemap] is null, else it will use that tilemap) and sets it's tiles based on [param level_data].

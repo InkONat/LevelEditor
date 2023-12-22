@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3 uid="uid://2ql7dquewkrt"]
+[gd_scene load_steps=7 format=3 uid="uid://2ql7dquewkrt"]
 
 [ext_resource type="Script" path="res://Editor/LevelEditor.gd" id="1_fahqc"]
 [ext_resource type="PackedScene" uid="uid://pkpxqi8ix78w" path="res://Editor/Scenes/level_specific.tscn" id="2_anycx"]
 [ext_resource type="Script" path="res://Editor/EditTileWindow.gd" id="3_qhnjv"]
 [ext_resource type="TileSet" uid="uid://c1wm0jqjtx2wm" path="res://Editor/Placeholder Assets/tileset.tres" id="4_e5o7m"]
 [ext_resource type="Script" path="res://Editor/Classes/TileMapFromEditor.gd" id="4_wxrm2"]
+[ext_resource type="Script" path="res://Editor/Grid.gd" id="6_4ap8m"]
 
 [node name="LevelEditor" type="Node2D"]
 script = ExtResource("1_fahqc")
@@ -78,5 +79,13 @@ metadata/_edit_lock_ = true
 tile_set = ExtResource("4_e5o7m")
 format = 2
 script = ExtResource("4_wxrm2")
+
+[node name="GridLayer" type="CanvasLayer" parent="."]
+
+[node name="Grid" type="Node2D" parent="GridLayer"]
+script = ExtResource("6_4ap8m")
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(576, 324)
 
 [connection signal="gui_input" from="Canvas/EditorCanvas" to="." method="_on_editor_canvas_gui_input"]

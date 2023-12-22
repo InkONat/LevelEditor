@@ -95,7 +95,7 @@ text = "Paint Mode"
 
 [node name="PaintOptions" type="OptionButton" parent="Level Window/Settings/HBoxContainer/VBoxContainer"]
 layout_mode = 2
-item_count = 5
+item_count = 6
 selected = 3
 popup/item_0/text = "Rect"
 popup/item_0/id = 0
@@ -107,6 +107,8 @@ popup/item_3/text = "Normal"
 popup/item_3/id = 3
 popup/item_4/text = "Eraser"
 popup/item_4/id = 4
+popup/item_5/text = "Fill"
+popup/item_5/id = 5
 script = ExtResource("4_sdas2")
 
 [node name="EditMode" type="CheckBox" parent="Level Window/Settings/HBoxContainer/VBoxContainer"]
