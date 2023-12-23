@@ -34,6 +34,5 @@ func enter(layer : int, properties : Array[Dictionary], node : Object, origin_ti
 		input.text_submitted.connect(func(text: String) -> void:
 			node.set(property["name"], str_to_var(text))
 			origin_tilemap.notify_runtime_tile_data_update(layer)
-			print("set lolios")
 			print(node.get(property["name"]))
 			)

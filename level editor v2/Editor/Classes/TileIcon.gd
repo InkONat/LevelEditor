@@ -58,7 +58,6 @@ func _ready() -> void:
 		
 		# second possibility: scene has an "icon" property
 		elif "icon" in inst:
-			print("tf")
 			var icon : Node2D = inst.icon
 			
 			if icon is Sprite2D:
@@ -87,8 +86,6 @@ func _ready() -> void:
 		if not found_texture:
 			push_warning("Texture was not provided for the tile. Using the placeholder icon.")
 			texture = preload("res://Editor/Placeholder Assets/placeholder_icon.png")
-		
-		print(texture)
 
 
 func _gui_input(event: InputEvent) -> void:

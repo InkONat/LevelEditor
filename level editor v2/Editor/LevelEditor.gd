@@ -77,13 +77,15 @@ var can_echo_paint : bool = false
 var undoredo_history : Array[Dictionary]
 var last_undone_action : Dictionary
 
+# we really need structs in gdscript like I BEG PLEASE I HATE USING DICTIONARIES FOR THIS SHIT PLEASE JUAN
+
 func _ready() -> void:
 	for layer_num in range(1000 + 1):
 		tilemap.add_layer(layer_num)
 		tilemap.set_layer_z_index(layer_num, layer_num)
 	
 	save_tilemap_data()
-	
+
 
 func _process(_delta: float) -> void:
 	
@@ -109,9 +111,11 @@ func _process(_delta: float) -> void:
 		"Global mouse position: ", get_global_mouse_position(), "\n",
 		"Mouse position on grid: ", (tilemap.local_to_map(get_local_mouse_position()))
 	)
+	
+	print(undoredo_history, "\n")
 
 
-# handles rect painting too
+# NOTICE: handles rect painting too
 func _on_editor_canvas_gui_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton: return
 	
@@ -173,8 +177,15 @@ func _input(event: InputEvent) -> void:
 				tilemap.set_layer_modulate(i, Color.DIM_GRAY)
 		
 		tilemap.set_layer_modulate(Editor.layer, Color.WHITE)
+		
+		# undo
+		if event.ctrl_pressed and event.key_label == KEY_Z:
+			print(undoredo_history[0]["action_name"])
+			undo_redo(true)
 
-# handles both editing and painting
+# NOTICE: handles both editing and painting
+# TODO:
+# 1 - PENDING_FEATURE: edit mode implementation
 func _tile_drawing_attempt(tile_is_null : bool, layer : int, special : bool, atlas_coords : Vector2i, scene_id : int, source_id : int, pos : Vector2i) -> void:
 	
 	# handling first press here so it will be in the state i want for this function
@@ -244,7 +255,7 @@ func _tile_drawing_attempt(tile_is_null : bool, layer : int, special : bool, atl
 					pos
 				)
 	
-	# TODO editor unfortunately not implemented just yet
+	# FUTURE CODE, IGNORE
 	#if first_press and Editor.edit_mode:
 		#
 		#var new_special_tile_scene : PackedScene = null
@@ -264,6 +275,8 @@ func _tile_drawing_attempt(tile_is_null : bool, layer : int, special : bool, atl
 	if first_press:
 		first_press = false
 
+
+# UNTESTED
 func save_tilemap_data() -> LevelData:
 	
 	var data : LevelData = LevelData.new()
@@ -301,35 +314,48 @@ func save_tilemap_data() -> LevelData:
 	return data
 
 
-func set_cell(layer : int, coords : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int) -> void:
-	undoredo_history.append({
-		"action_name": "Set Cell",
-		"method_name": "set_cell",
-		"params": [layer, coords, source_id, atlas_coords, alt_tile],
-		"undo_method": "erase_cell",
-		"undo_params": [layer, coords]
-	})
+func set_cell(layer : int, coords : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int, undone : bool = false) -> void:
+	
+	if tilemap.get_cell_source_id(layer, coords) == source_id \
+		and \
+		tilemap.get_cell_alternative_tile(layer, coords) == alt_tile \
+		and \
+		tilemap.get_cell_atlas_coords(layer, coords) == atlas_coords:
+			
+			return
+	
+	if not undone:
+		undoredo_history.push_front({
+			"action_name": "Set Cell",
+			"method_name": "set_cell",
+			"params": [layer, coords, source_id, atlas_coords, alt_tile],
+			"undo_method": "erase_cell",
+			"undo_params": [layer, coords, true]
+		})
 	
 	tilemap.set_cell(layer, coords, source_id, atlas_coords, alt_tile)
 
 
-func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int) -> void:
+# TODO:
+# 1 - REFACTOR_NEEDED: set_recursive doesnt work
+func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int, undone : bool = false) -> void:
 	
-	print("the horror")
-	#undoredo
-	undoredo_history.append({
-		"action_name": "Fill Area",
-		"method_name": "fill_with_tile",
-		"params": [layer, init_pos, source_id, atlas_coords, alt_tile],
-		"undo_method": "fill_with_tile",
-		"undo_params": [
-			layer,
-			init_pos,
-			tilemap.get_cell_source_id(layer, init_pos),
-			tilemap.get_cell_atlas_coords(layer, init_pos),
-			tilemap.get_cell_alternative_tile(layer, init_pos),
-		],
-	})
+	if not undone:
+		#undoredo
+		undoredo_history.push_front({
+			"action_name": "Fill Area",
+			"method_name": "fill_with_tile",
+			"params": [layer, init_pos, source_id, atlas_coords, alt_tile],
+			"undo_method": "fill_with_tile",
+			"undo_params": [
+				layer,
+				init_pos,
+				tilemap.get_cell_source_id(layer, init_pos),
+				tilemap.get_cell_atlas_coords(layer, init_pos),
+				tilemap.get_cell_alternative_tile(layer, init_pos),
+				true
+			],
+		})
 	
 	var ref_tile : Tile = Tile.new()
 	
@@ -341,6 +367,8 @@ func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coo
 	
 
 
+# TODO:
+# 1 - CRITICAL: doesnt even work lmao
 func set_recursive(layer : int, at : Vector2i, tile: Tile, ref_tile : Tile) -> void:
 	
 	if not ( \
@@ -359,36 +387,47 @@ func set_recursive(layer : int, at : Vector2i, tile: Tile, ref_tile : Tile) -> v
 		set_recursive(layer, neighbor, tile, ref_tile)
 
 
-func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : Vector2i, special : bool, scene_id : int) -> void:
+# TODO:
+# 1 - BUG: when setting a rect without being from a point to a point with bigger x and y,
+#          the rect isnt set correctly (LIKELY because of Rect2 (and Rect2i) not accepting
+#          negative values for the size
+# 2 - REFACTOR_NEEDED: undoredo will erase the tiles that were on the rect before,
+#                      so these are not preserved (so the undo doesnt work correctly)
+#                      CAUSE: the way undoredo is set for this function (lines 394-409)
+func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : Vector2i, special : bool, scene_id : int, undone : bool = false) -> void:
 	
 	# undoredo
 	# will basically erase the tiles that were on the rect before
 	# unfortunately i dont have time to make the undo actually work
 	# unfortunate innit
 	# TODO: make the undo actually work
-	undoredo_history.append({
-		"action_name": "Set Rect",
-		"method_name": "set_tile_rect",
-		"params": [rect, layer, source_id, atlas_coords, special, scene_id],
-		"undo_method": "set_tile_rect",
-		"undo_params": [
-			rect,
-			layer,
-			-1,
-			Vector2i(-1, -1),
-			false,
-			-1
-		]
-	})
+	if not undone:
+		undoredo_history.push_front({
+			"action_name": "Set Rect",
+			"method_name": "set_tile_rect",
+			"params": [rect, layer, source_id, atlas_coords, special, scene_id],
+			"undo_method": "set_tile_rect",
+			"undo_params": [
+				rect,
+				layer,
+				-1,
+				Vector2i(-1, -1),
+				false,
+				-1,
+				true
+			]
+		})
 	# some math stuff
 	var rect_x_len : int = absi(rect.size.x - rect.position.x)
 	var rect_y_len : int = absi(rect.size.y - rect.position.y)
 	
+	var x_increment : int = signi(rect.size.x - initial_rect_or_line_pos.x)
 	var x : int
-	while x <= rect_x_len:
+	var i : int
+	while i <= rect_x_len:
 		
 		# directly next to the initial pos
-		set_cell(
+		tilemap.set_cell(
 			layer,
 			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y),
 			source_id,
@@ -397,23 +436,23 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 		)
 		
 		# parallel side
-		set_cell(
+		tilemap.set_cell(
 			layer,
 			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y + rect_y_len),
 			source_id,
 			atlas_coords if not special else Vector2i(0, 0),
 			0 if not special else scene_id
 		)
-		
-		x += 1
+		x += x_increment
+		i += 1
 	
-	
+	var y_increment : int = signi(rect.size.y - initial_rect_or_line_pos.y)
 	var y : int
-	
-	while y <= rect_y_len:
+	var j : int
+	while j <= rect_y_len:
 		
 		# right next to the initial pos
-		set_cell(
+		tilemap.set_cell(
 			layer,
 			Vector2i(initial_rect_or_line_pos.x, initial_rect_or_line_pos.y + y),
 			source_id,
@@ -422,7 +461,7 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 		)
 		
 		# parallel side
-		set_cell(
+		tilemap.set_cell(
 			layer,
 			Vector2i(initial_rect_or_line_pos.x + rect_x_len, initial_rect_or_line_pos.y + y),
 			source_id,
@@ -430,28 +469,34 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 			0 if not special else scene_id
 		)
 		
-		y += 1
+		y += y_increment
+		j += 1
 
 
-func erase_cell(layer : int, coords : Vector2i) -> void:
-	undoredo_history.append({
-		"action_name": "Erase Cell",
-		"method_name": "set_cell",
-		"params": [layer, coords],
-		"undo_method": "erase_cell",
-		"undo_params": [
-			layer,
-			coords,
-			tilemap.get_cell_source_id(layer, coords),
-			tilemap.get_cell_atlas_coords(layer, coords),
-			tilemap.get_cell_alternative_tile(layer, coords)
-		]
-	})
+func erase_cell(layer : int, coords : Vector2i, undone : bool = false) -> void:
+	
+	if not undone:
+		undoredo_history.push_front({
+			"action_name": "Erase Cell",
+			"method_name": "set_cell",
+			"params": [layer, coords],
+			"undo_method": "erase_cell",
+			"undo_params": [
+				layer,
+				coords,
+				tilemap.get_cell_source_id(layer, coords),
+				tilemap.get_cell_atlas_coords(layer, coords),
+				tilemap.get_cell_alternative_tile(layer, coords),
+				true
+			]
+		})
 	
 	tilemap.erase_cell(layer, coords)
 
 
 func undo_redo(undo : bool) -> void:
+	
+	if undoredo_history.is_empty(): return
 	
 	if undo:
 		
@@ -461,13 +506,15 @@ func undo_redo(undo : bool) -> void:
 		
 		last_undone_action = action
 		
+		undoredo_history.erase(action)
+		
 	
 	else:
 		
-		if last_undone_action == {}: return
+		if last_undone_action.is_empty(): return
 		
 		callv(last_undone_action["method_name"], last_undone_action["params"])
 		
-		undoredo_history.append(last_undone_action)
+		undoredo_history.push_front(last_undone_action)
 		
 		last_undone_action = {}
