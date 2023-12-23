@@ -49,27 +49,7 @@ var first_press : bool = false
 var mouse_held : bool = false:
 	set(value):
 		
-		if value:
-			
-			if Editor.paint_mode != Editor.PaintMode.PAINT_MODE_ECHOLESS:
-				can_echo_paint = true
-			
-			else:
-				var pos : Vector2 = (tilemap.local_to_map(get_local_mouse_position()))
-				
-				var is_null : bool = not is_instance_valid(Editor.tile)
-				_tile_drawing_attempt(
-					is_null,
-					Editor.layer,
-					Editor.tile.special if not is_null else false,
-					Editor.tile.atlas_coords if not is_null else Vector2i(0, 0),
-					Editor.tile.scene_id if not is_null else 0,
-					Editor.tile.source_id if not is_null else 0,
-					pos
-				)
-			
-			
-		else:
+		if not value:
 			mouse_released.emit()
 			can_echo_paint = false
 		
@@ -130,14 +110,37 @@ func _process(_delta: float) -> void:
 		"Mouse position on grid: ", (tilemap.local_to_map(get_local_mouse_position()))
 	)
 
+
+# handles rect painting too
 func _on_editor_canvas_gui_input(event: InputEvent) -> void:
 	if not event is InputEventMouseButton: return
 	
 	if not event.pressed:
+		
+		if current_rect != Rect2i(0, 0, 0, 0):
+			set_tile_rect(current_rect, Editor.layer, Editor.tile.source_id, Editor.tile.atlas_coords, Editor.tile.special, Editor.tile.scene_id)
+		
 		mouse_held = false
 		previous_rect_state = Rect2i(0, 0, 0, 0)
+		current_rect = Rect2i(0, 0, 0, 0)
 	
 	if event.button_mask == MOUSE_BUTTON_MASK_LEFT:
+		
+		if Editor.paint_mode != Editor.PaintMode.PAINT_MODE_ECHOLESS or Editor.paint_mode != Editor.PaintMode.PAINT_MODE_FILL and not event.is_released():
+			can_echo_paint = true
+			
+			var pos : Vector2 = (tilemap.local_to_map(get_local_mouse_position()))
+				
+			var is_null : bool = not is_instance_valid(Editor.tile)
+			_tile_drawing_attempt(
+				is_null,
+				Editor.layer,
+				Editor.tile.special if not is_null else false,
+				Editor.tile.atlas_coords if not is_null else Vector2i(0, 0),
+				Editor.tile.scene_id if not is_null else 0,
+				Editor.tile.source_id if not is_null else 0,
+				pos
+			)
 		
 		mouse_held = event.pressed
 		first_press = true # set to false on the tile drawing attempt func
@@ -187,126 +190,14 @@ func _tile_drawing_attempt(tile_is_null : bool, layer : int, special : bool, atl
 			
 			
 			# will run at process
+			# the actual rect setting shit is done on the canvas gui input and
+			# on the set_tile_rect() func
 			Editor.PaintMode.PAINT_MODE_RECT:
 				
 				if first_press:
 					initial_rect_or_line_pos = pos
 				
 				var rect : Rect2i = Rect2i(initial_rect_or_line_pos, rect_mouse_pos).abs()
-				previous_rect_state = rect # the previous_rect_state set func awaits a frame to set it, so this should work
-				
-				# some math stuff
-				var rect_x_len : int = absi(rect.size.x - rect.position.x)
-				var rect_y_len : int = absi(rect.size.y - rect.position.y)
-				
-				var x : int
-				while x < rect_x_len:
-					
-					# directly next to the initial pos
-					set_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y),
-						source_id,
-						atlas_coords if not special else Vector2i(0, 0),
-						0 if not special else scene_id
-					)
-					
-					# parallel side
-					set_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y + rect_y_len),
-						source_id,
-						atlas_coords if not special else Vector2i(0, 0),
-						0 if not special else scene_id
-					)
-					
-					x += 1
-				
-				
-				var y : int
-				
-				while y < rect_y_len:
-					
-					# right next to the initial pos
-					set_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x, initial_rect_or_line_pos.y + y),
-						source_id,
-						atlas_coords if not special else Vector2i(0, 0),
-						0 if not special else scene_id
-					)
-					
-					# parallel side
-					set_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x + rect_x_len, initial_rect_or_line_pos.y + y),
-						source_id,
-						atlas_coords if not special else Vector2i(0, 0),
-						0 if not special else scene_id
-					)
-					
-					y += 1
-				
-				# now we will be deleting previous rects
-				# i dont know how to fix but this will 100% delete unrelated tiles
-				# TODO: make that not happen
-				
-				if mouse_diff_dir != Vector2i.ZERO and previous_rect_state != Rect2i(0, 0, 0, 0):
-					
-					var prev_rect_x_len : int = absi(previous_rect_state.size.x - previous_rect_state.position.x)
-					var prev_rect_y_len : int = absi(previous_rect_state.size.y - previous_rect_state.position.y)
-					
-					var prev_x : int
-					while prev_x < prev_rect_x_len:
-						
-						erase_cell(
-							layer,
-							Vector2i(prev_x + initial_rect_or_line_pos.x,
-								initial_rect_or_line_pos.y)
-						)
-						
-						erase_cell(
-							layer,
-							Vector2i(prev_x + initial_rect_or_line_pos.x,
-								initial_rect_or_line_pos.y + prev_rect_y_len)
-						)
-						
-						prev_x += 1
-					
-					var prev_y : int
-					while prev_y < prev_rect_y_len:
-						
-						erase_cell(
-							layer,
-							Vector2i(initial_rect_or_line_pos.x,
-								prev_y + initial_rect_or_line_pos.y)
-						)
-						
-						erase_cell(
-							layer,
-							Vector2i(initial_rect_or_line_pos.x + prev_rect_x_len,
-								prev_y + initial_rect_or_line_pos.y)
-						)
-						
-						prev_y += 1
-					
-					# setting the tile at the corner
-					set_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x + rect_x_len,
-							initial_rect_or_line_pos.y + rect_y_len),
-						source_id,
-						atlas_coords if not special else Vector2i(0, 0),
-						0 if not special else scene_id
-					)
-					
-					# erasing the prev tile at the corner
-					erase_cell(
-						layer,
-						Vector2i(initial_rect_or_line_pos.x + prev_rect_x_len,
-							initial_rect_or_line_pos.y + prev_rect_y_len)
-					)
-				
 				current_rect = rect
 			
 			
@@ -322,62 +213,10 @@ func _tile_drawing_attempt(tile_is_null : bool, layer : int, special : bool, atl
 			
 			
 			
+			# ran at the set function of the mouse beinhg held bool so it only runs once
 			Editor.PaintMode.PAINT_MODE_FILL:
 				
-				# tiles left to be added to paint_needed_on_tiles
-				var tiles_left : Array[Vector2i]
-				var paint_needed_on_tiles : Array[Vector2i]
-				
-				paint_needed_on_tiles.append(pos)
-				
-				# tiles left to append to the paint needed on tiles array
-				# obviously, wherever you clicked will need to be painted
-				var tiles_left_to_append : Array[Vector2i] = [pos]
-				
-				# the tile identifier (atlas coords or alt tile/scene id) of the tile you clicked.
-				# this will be used to determine if a tile will be painted with the tile
-				# you have selected
-				var ref_paint_tile : Variant  = \
-					atlas_coords if not special \
-					else scene_id
-				
-				while tiles_left_to_append.size() > 0:
-					
-					# cap to how many tiles can be filled so if you for example fill the entire canvas
-					# on accident, this will stop that from happening
-					if paint_needed_on_tiles.size() >= 400:
-						paint_needed_on_tiles = [] # so basically cancelling the whole thing
-						break
-					
-					var surrounding_cells : Array[Vector2i] = tilemap.get_surrounding_cells(tiles_left_to_append[0])
-					
-					# we will do the same iteration later, theres probably a
-					# more elegant way of doing this
-					for neighbor_cell in surrounding_cells:
-						
-						if neighbor_cell in tiles_left_to_append:
-							
-							surrounding_cells.erase(neighbor_cell)
-					
-					tiles_left_to_append.append_array(surrounding_cells)
-					
-					for neighbor_cell in surrounding_cells:
-						
-						var cell : Variant = \
-							tilemap.get_cell_atlas_coords(layer, neighbor_cell) \
-							if tilemap.get_cell_alternative_tile(layer, neighbor_cell) == 0 \
-							else tilemap.get_cell_atlas_coords(layer, neighbor_cell)
-						
-						if cell == ref_paint_tile:
-							
-							tiles_left_to_append.erase(neighbor_cell)
-							paint_needed_on_tiles.append(neighbor_cell)
-						
-					
-					
-					
-					
-				print(tiles_left_to_append)
+				fill_with_tile(layer, pos, source_id, atlas_coords, scene_id)
 			
 			
 			
@@ -472,6 +311,126 @@ func set_cell(layer : int, coords : Vector2i, source_id : int, atlas_coords : Ve
 	})
 	
 	tilemap.set_cell(layer, coords, source_id, atlas_coords, alt_tile)
+
+
+func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int) -> void:
+	
+	print("the horror")
+	#undoredo
+	undoredo_history.append({
+		"action_name": "Fill Area",
+		"method_name": "fill_with_tile",
+		"params": [layer, init_pos, source_id, atlas_coords, alt_tile],
+		"undo_method": "fill_with_tile",
+		"undo_params": [
+			layer,
+			init_pos,
+			tilemap.get_cell_source_id(layer, init_pos),
+			tilemap.get_cell_atlas_coords(layer, init_pos),
+			tilemap.get_cell_alternative_tile(layer, init_pos),
+		],
+	})
+	
+	var ref_tile : Tile = Tile.new()
+	
+	ref_tile.atlas_coords = tilemap.get_cell_atlas_coords(layer, init_pos)
+	ref_tile.scene_id = tilemap.get_cell_alternative_tile(layer, init_pos)
+	ref_tile.source_id = tilemap.get_cell_source_id(layer, init_pos)
+	
+	set_recursive(layer, init_pos, Editor.tile, ref_tile)
+	
+
+
+func set_recursive(layer : int, at : Vector2i, tile: Tile, ref_tile : Tile) -> void:
+	
+	if not ( \
+		tilemap.get_cell_atlas_coords(layer, at) == ref_tile.atlas_coords \
+		and \
+		tilemap.get_cell_alternative_tile(layer, at) == ref_tile.scene_id \
+		and \
+		tilemap.get_cell_source_id(layer, at) == ref_tile.source_id ):
+			
+			return
+	
+	tilemap.set_cell(layer, at, tile.source_id, tile.atlas_coords, tile.scene_id)
+	
+	for neighbor in tilemap.get_surrounding_cells(at):
+		tilemap.set_cell(layer, neighbor, tile.source_id, tile.atlas_coords, tile.scene_id)
+		set_recursive(layer, neighbor, tile, ref_tile)
+
+
+func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : Vector2i, special : bool, scene_id : int) -> void:
+	
+	# undoredo
+	# will basically erase the tiles that were on the rect before
+	# unfortunately i dont have time to make the undo actually work
+	# unfortunate innit
+	# TODO: make the undo actually work
+	undoredo_history.append({
+		"action_name": "Set Rect",
+		"method_name": "set_tile_rect",
+		"params": [rect, layer, source_id, atlas_coords, special, scene_id],
+		"undo_method": "set_tile_rect",
+		"undo_params": [
+			rect,
+			layer,
+			-1,
+			Vector2i(-1, -1),
+			false,
+			-1
+		]
+	})
+	# some math stuff
+	var rect_x_len : int = absi(rect.size.x - rect.position.x)
+	var rect_y_len : int = absi(rect.size.y - rect.position.y)
+	
+	var x : int
+	while x <= rect_x_len:
+		
+		# directly next to the initial pos
+		set_cell(
+			layer,
+			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y),
+			source_id,
+			atlas_coords if not special else Vector2i(0, 0),
+			0 if not special else scene_id
+		)
+		
+		# parallel side
+		set_cell(
+			layer,
+			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y + rect_y_len),
+			source_id,
+			atlas_coords if not special else Vector2i(0, 0),
+			0 if not special else scene_id
+		)
+		
+		x += 1
+	
+	
+	var y : int
+	
+	while y <= rect_y_len:
+		
+		# right next to the initial pos
+		set_cell(
+			layer,
+			Vector2i(initial_rect_or_line_pos.x, initial_rect_or_line_pos.y + y),
+			source_id,
+			atlas_coords if not special else Vector2i(0, 0),
+			0 if not special else scene_id
+		)
+		
+		# parallel side
+		set_cell(
+			layer,
+			Vector2i(initial_rect_or_line_pos.x + rect_x_len, initial_rect_or_line_pos.y + y),
+			source_id,
+			atlas_coords if not special else Vector2i(0, 0),
+			0 if not special else scene_id
+		)
+		
+		y += 1
 
 
 func erase_cell(layer : int, coords : Vector2i) -> void:
