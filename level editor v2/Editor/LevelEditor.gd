@@ -2,6 +2,8 @@ extends Node2D
 
 signal mouse_released
 
+const FILL_TILE_LIMIT : int = 2000
+
 # a lot of these variables are for the rect paint mode
 
 # wait 1 frame to set it
@@ -112,7 +114,7 @@ func _process(_delta: float) -> void:
 		"Mouse position on grid: ", (tilemap.local_to_map(get_local_mouse_position()))
 	)
 	
-	print(undoredo_history, "\n")
+	#print(undoredo_history, "\n")
 
 
 # NOTICE: handles rect painting too
@@ -336,8 +338,6 @@ func set_cell(layer : int, coords : Vector2i, source_id : int, atlas_coords : Ve
 	tilemap.set_cell(layer, coords, source_id, atlas_coords, alt_tile)
 
 
-# TODO:
-# 1 - REFACTOR_NEEDED: set_recursive doesnt work
 func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coords : Vector2i, alt_tile : int, undone : bool = false) -> void:
 	
 	if not undone:
@@ -363,28 +363,37 @@ func fill_with_tile(layer : int, init_pos : Vector2i, source_id : int, atlas_coo
 	ref_tile.scene_id = tilemap.get_cell_alternative_tile(layer, init_pos)
 	ref_tile.source_id = tilemap.get_cell_source_id(layer, init_pos)
 	
-	set_recursive(layer, init_pos, Editor.tile, ref_tile)
+	# queue based flood fill """algorithm"""
 	
-
-
-# TODO:
-# 1 - CRITICAL: doesnt even work lmao
-func set_recursive(layer : int, at : Vector2i, tile: Tile, ref_tile : Tile) -> void:
+	var queue : Array[Vector2i] = []
+	var applied_on : Array[Vector2i] = []
 	
-	if not ( \
-		tilemap.get_cell_atlas_coords(layer, at) == ref_tile.atlas_coords \
-		and \
-		tilemap.get_cell_alternative_tile(layer, at) == ref_tile.scene_id \
-		and \
-		tilemap.get_cell_source_id(layer, at) == ref_tile.source_id ):
+	queue.append(init_pos)
+	tilemap.set_cell(layer, init_pos, source_id, atlas_coords, alt_tile)
+	
+	# limit of 2000 tiles being filled so you dont like. explode the canvas
+	var tile_counter : int = 0
+	
+	while not queue.is_empty():
+		
+		if tile_counter >= FILL_TILE_LIMIT:
 			
-			return
-	
-	tilemap.set_cell(layer, at, tile.source_id, tile.atlas_coords, tile.scene_id)
-	
-	for neighbor in tilemap.get_surrounding_cells(at):
-		tilemap.set_cell(layer, neighbor, tile.source_id, tile.atlas_coords, tile.scene_id)
-		set_recursive(layer, neighbor, tile, ref_tile)
+			break
+		
+		var current_tile : Vector2i = queue.pop_front()
+		
+		for at in tilemap.get_surrounding_cells(current_tile):
+			
+			if \
+				tilemap.get_cell_atlas_coords(layer, at) == ref_tile.atlas_coords \
+				and tilemap.get_cell_alternative_tile(layer, at) == ref_tile.scene_id \
+				and tilemap.get_cell_source_id(layer, at) == ref_tile.source_id \
+				and (not at in applied_on):
+					
+					tile_counter += 1
+					tilemap.set_cell(layer, at, source_id, atlas_coords, alt_tile)
+					queue.append(at)
+					applied_on.append(at)
 
 
 # TODO:
@@ -421,7 +430,9 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 	var rect_x_len : int = absi(rect.size.x - rect.position.x)
 	var rect_y_len : int = absi(rect.size.y - rect.position.y)
 	
+	var y_increment : int = signi(rect.size.y - initial_rect_or_line_pos.y)
 	var x_increment : int = signi(rect.size.x - initial_rect_or_line_pos.x)
+	
 	var x : int
 	var i : int
 	while i <= rect_x_len:
@@ -438,7 +449,7 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 		# parallel side
 		tilemap.set_cell(
 			layer,
-			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y + rect_y_len),
+			Vector2i(initial_rect_or_line_pos.x + x, initial_rect_or_line_pos.y + (y_increment * rect_y_len)),
 			source_id,
 			atlas_coords if not special else Vector2i(0, 0),
 			0 if not special else scene_id
@@ -446,7 +457,7 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 		x += x_increment
 		i += 1
 	
-	var y_increment : int = signi(rect.size.y - initial_rect_or_line_pos.y)
+	
 	var y : int
 	var j : int
 	while j <= rect_y_len:
@@ -463,7 +474,7 @@ func set_tile_rect(rect : Rect2i, layer : int, source_id : int, atlas_coords : V
 		# parallel side
 		tilemap.set_cell(
 			layer,
-			Vector2i(initial_rect_or_line_pos.x + rect_x_len, initial_rect_or_line_pos.y + y),
+			Vector2i(initial_rect_or_line_pos.x + (x_increment * rect_x_len), initial_rect_or_line_pos.y + y),
 			source_id,
 			atlas_coords if not special else Vector2i(0, 0),
 			0 if not special else scene_id
